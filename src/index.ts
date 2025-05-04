@@ -14,9 +14,20 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { pipeline, env } from "@xenova/transformers";
 import hnsw from "hnswlib-node";
-import pdfParse from "pdf-parse";
 import { minimatch } from 'minimatch';
 import { glob } from 'glob';
+
+// Import pdf-parse dynamically to avoid errors
+const pdfParse = async (buffer: Buffer) => {
+  try {
+    // Using dynamic import for compatibility
+    const pdfParseModule = await import('pdf-parse');
+    return pdfParseModule.default(buffer);
+  } catch (error) {
+    console.error("Error loading pdf-parse module:", error);
+    throw error;
+  }
+};
 
 // Set the Transformers.js cache and allocation
 env.cacheDir = path.join(os.tmpdir(), 'transformers.js');
@@ -312,11 +323,16 @@ async function extractTextFromFile(filePath: string): Promise<string> {
   
   try {
     if (fileExt === '.pdf') {
-      const dataBuffer = await fs.readFile(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      return pdfData.text || '';
+      try {
+        const dataBuffer = await fs.readFile(filePath);
+        const pdfData = await pdfParse(dataBuffer);
+        return pdfData.text || '';
+      } catch (pdfError) {
+        console.error(`Error parsing PDF ${filePath}:`, pdfError);
+        return `[PDF file: ${path.basename(filePath)} - Error parsing content]`;
+      }
     } else {
-      // Assume text file
+      // Handle text files
       return await fs.readFile(filePath, 'utf-8');
     }
   } catch (error: any) {
