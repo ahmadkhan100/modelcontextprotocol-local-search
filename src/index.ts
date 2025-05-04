@@ -13,9 +13,7 @@ import os from 'os';
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { pipeline, env } from "@xenova/transformers";
-// Import faiss-node using CommonJS pattern
-import faissNode from "faiss-node";
-const { IndexFlatL2 } = faissNode;
+import hnsw from "hnswlib-node";
 import pdfParse from "pdf-parse";
 import { minimatch } from 'minimatch';
 import { glob } from 'glob';
@@ -149,7 +147,11 @@ class VectorStore {
     try {
       console.error('Initializing embedding model...');
       this.embeddingModel = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-      this.index = new IndexFlatL2(this.dimension);
+      
+      // Initialize HNSWLib index
+      this.index = new hnsw.HierarchicalNSW('l2', this.dimension);
+      this.index.initIndex(1000); // Max elements, can be increased later
+      
       this.initialized = true;
       console.error('Vector store initialized successfully.');
     } catch (error) {
@@ -193,12 +195,13 @@ class VectorStore {
       const embedding = await this.generateEmbedding(chunks[i]);
       if (embedding) {
         doc.vector = embedding;
-        this.documents.push(doc);
         
-        // Add to FAISS index
+        // Add to HNSWLib index
         if (this.index) {
-          this.index.add(embedding);
+          this.index.addPoint(embedding, this.documents.length);
         }
+        
+        this.documents.push(doc);
       }
     }
   }
@@ -261,12 +264,14 @@ class VectorStore {
     }
     
     // Search the index
-    const searchResults = this.index.search(queryEmbedding, Math.min(numResults, this.documents.length));
+    const k = Math.min(numResults, this.documents.length);
+    const searchResults = this.index.searchKnn(queryEmbedding, k);
     
     // Map results back to documents
-    return searchResults.labels.map((idx: number, i: number) => {
-      // FAISS returns squared L2 distance, convert to similarity score
-      const similarity = 1 / (1 + searchResults.distances[i]);
+    return searchResults.neighbors.map((idx: number, i: number) => {
+      // Convert distance to similarity score
+      const distance = searchResults.distances[i];
+      const similarity = 1 / (1 + distance);
       
       return {
         score: similarity,
@@ -277,8 +282,10 @@ class VectorStore {
   
   clear(): void {
     this.documents = [];
-    if (this.index) {
-      this.index = new IndexFlatL2(this.dimension);
+    if (this.initialized) {
+      // Reinitialize the index
+      this.index = new hnsw.HierarchicalNSW('l2', this.dimension);
+      this.index.initIndex(1000);
     }
     this.fileTypes = {};
   }
