@@ -1,5 +1,5 @@
 {
-  "name": "@modelcontextprotocol/server-vectorsearch",
+  "name": "mcp-server-vectorsearch",
   "version": "0.1.0",
   "description": "MCP server for local vector search operations",
   "license": "MIT",
