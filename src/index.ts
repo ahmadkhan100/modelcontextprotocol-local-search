@@ -352,9 +352,20 @@ const server = new McpServer({
 
 // Tool definitions
 server.tool("index_file",
-  IndexFileArgsSchema,
-  async ({ path: filePath }) => {
+  z.object({
+    path: z.string().optional(),
+    file_path: z.string().optional(), // Added for compatibility
+  }).refine(data => data.path || data.file_path, {
+    message: "Either path or file_path must be provided"
+  }),
+  async (params) => {
     try {
+      // Use either path or file_path parameter
+      const filePath = params.path || params.file_path;
+      if (!filePath) {
+        throw new Error("No file path provided");
+      }
+      
       const validPath = await validatePath(filePath);
       
       // Extract text and add to vector store
@@ -379,13 +390,27 @@ server.tool("index_file",
 );
 
 server.tool("index_directory",
-  IndexDirectoryArgsSchema,
-  async ({ path: dirPath, extensions, excludePatterns }) => {
+  z.object({
+    path: z.string().optional(),
+    dir_path: z.string().optional(), // Added for compatibility
+    directory: z.string().optional(), // Added for compatibility
+    extensions: z.array(z.string()).optional().default(['.txt', '.pdf']),
+    excludePatterns: z.array(z.string()).optional().default([])
+  }).refine(data => data.path || data.dir_path || data.directory, {
+    message: "Either path, dir_path, or directory must be provided"
+  }),
+  async (params) => {
     try {
+      // Use any of the provided path parameters
+      const dirPath = params.path || params.dir_path || params.directory;
+      if (!dirPath) {
+        throw new Error("No directory path provided");
+      }
+      
       const validPath = await validatePath(dirPath);
       
       // Find all files with matching extensions
-      const pattern = `**/*@(${extensions.map((ext: string) => ext.replace(/^\./, '')).join('|')})`;
+      const pattern = `**/*@(${params.extensions.map((ext: string) => ext.replace(/^\./, '')).join('|')})`;
       const files = await glob(pattern, { 
         cwd: validPath,
         absolute: true
@@ -394,7 +419,7 @@ server.tool("index_directory",
       // Filter out excluded files
       const filteredFiles = files.filter((file: string) => {
         const relativePath = path.relative(validPath, file);
-        return !excludePatterns.some((pattern: string) => {
+        return !params.excludePatterns.some((pattern: string) => {
           const globPattern = pattern.includes('*') ? pattern : `**/${pattern}/**`;
           return minimatch(relativePath, globPattern, { dot: true });
         });
@@ -436,10 +461,30 @@ server.tool("index_directory",
 );
 
 server.tool("search",
-  SearchArgsSchema,
-  async ({ query, numResults, threshold }) => {
+  z.object({
+    query: z.string().optional(),
+    q: z.string().optional(), // Added for compatibility
+    search_query: z.string().optional(), // Added for compatibility
+    text: z.string().optional(), // Added for compatibility
+    numResults: z.number().optional().default(5),
+    num_results: z.number().optional(), // Added for compatibility
+    limit: z.number().optional(), // Added for compatibility
+    threshold: z.number().optional().default(0.7)
+  }).refine(data => data.query || data.q || data.search_query || data.text, {
+    message: "A search query must be provided"
+  }),
+  async (params) => {
     try {
-      const results = await vectorStore.search(query, numResults, threshold);
+      // Use any of the provided query parameters
+      const query = params.query || params.q || params.search_query || params.text;
+      if (!query) {
+        throw new Error("No search query provided");
+      }
+      
+      // Use any of the provided result limit parameters
+      const numResults = params.numResults || params.num_results || params.limit || 5;
+      
+      const results = await vectorStore.search(query, numResults, params.threshold);
       
       if (results.length === 0) {
         return {
