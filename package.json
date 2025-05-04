@@ -5,6 +5,10 @@
   "license": "MIT",
   "author": "Ahmad Khan",
   "homepage": "https://github.com/ahmadkhan100/mcp-server-vectorsearch",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ahmadkhan100/mcp-server-vectorsearch.git"
+  },
   "bugs": "https://github.com/ahmadkhan100/mcp-server-vectorsearch/issues",
   "type": "module",
   "bin": {
