@@ -4,8 +4,8 @@
   "description": "MCP server for local vector search operations",
   "license": "MIT",
   "author": "Ahmad Khan",
-  "homepage": "https://github.com/ahmadkhan/mcp-server-vectorsearch",
-  "bugs": "https://github.com/ahmadkhan/mcp-server-vectorsearch/issues",
+  "homepage": "https://github.com/ahmadkhan100/mcp-server-vectorsearch",
+  "bugs": "https://github.com/ahmadkhan100/mcp-server-vectorsearch/issues",
   "type": "module",
   "bin": {
     "mcp-server-vectorsearch": "dist/index.js"
