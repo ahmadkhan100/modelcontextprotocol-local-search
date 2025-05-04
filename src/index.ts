@@ -13,7 +13,9 @@ import os from 'os';
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { pipeline, env } from "@xenova/transformers";
-import { IndexFlatL2 } from "faiss-node";
+// Import faiss-node using CommonJS pattern
+import faissNode from "faiss-node";
+const { IndexFlatL2 } = faissNode;
 import pdfParse from "pdf-parse";
 import { minimatch } from 'minimatch';
 import { glob } from 'glob';
@@ -133,7 +135,7 @@ interface Document {
 class VectorStore {
   private embeddingModel: any;
   private documents: Document[] = [];
-  private index: IndexFlatL2 | null = null;
+  private index: any = null;
   private initialized = false;
   private dimension = 384; // MiniLM dimension
   private fileTypes: Record<string, number> = {};
